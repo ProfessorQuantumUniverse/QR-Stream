@@ -30,22 +30,33 @@
         </div>
     </div>
 
-    <!-- Die korrekte Bibliotheks-URL -->
     <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
     
     <script>
-        // Ersetzen Sie den EventListener für 'start-scan-btn' durch diesen Code:
+        // --- VOLLSTÄNDIGES, KORRIGIERTES SKRIPT ---
 
+        // 1. DOM-Elemente abrufen
+        const startScanBtn = document.getElementById('start-scan-btn');
+        const video = document.getElementById('video-preview');
+        const resultEl = document.getElementById('result-text');
+        const progressEl = document.getElementById('progress');
+
+        // 2. ZXing-Reader und Zustandsvariablen initialisieren
+        const codeReader = new ZXing.BrowserMultiFormatReader();
+        let receivedChunks = {};
+        let totalChunks = 0;
+        let controls = null;
         let scanInterval = null;
 
+        // 3. Event Listener für den Start-Button (Performance-optimierte Version)
         startScanBtn.addEventListener('click', async () => {
+            // Zustand zurücksetzen
             receivedChunks = {};
             totalChunks = 0;
             resultEl.textContent = '';
             progressEl.textContent = 'Starte Kamera...';
             startScanBtn.disabled = true;
 
-    // 1. Kamera-Stream anfordern (wie bisher)
             const constraints = {
                 video: {
                     width: { ideal: 640 },
@@ -57,14 +68,14 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
-                video.play(); // Video-Vorschau starten
+                video.play();
 
-                // Zuweisen des Streams an den CodeReader, aber noch nicht scannen!
+                // Stream an ZXing binden, aber noch nicht die Endlos-Schleife starten
                 controls = await codeReader.attachStreamToVideo(stream, 'video-preview');
                 progressEl.textContent = 'Kamera aktiv. Scanne...';
 
-                // 2. Kontrollierte Scan-Schleife starten
-                // Der Sender wechselt alle 150ms. Ein Scan alle 160ms ist ein guter Startwert.
+                // Kontrollierte Scan-Schleife starten (Throttling)
+                // Der Sender wechselt alle 150ms. Ein Scan alle 160ms ist ein guter, batterieschonender Wert.
                 if (scanInterval) clearInterval(scanInterval);
                 scanInterval = setInterval(scanFrame, 160);
 
@@ -76,37 +87,64 @@
             }
         });
 
-        // 3. Eine separate Funktion zum Scannen eines einzelnen Frames
+        // 4. Funktion, die einen einzelnen Frame scannt
         async function scanFrame() {
             if (!video.srcObject) return; // Stopp, wenn die Kamera aus ist
 
             try {
-                // Scanne genau EINEN Frame vom laufenden Video
-                const result = await codeReader.decodeFromVideo('video-preview');
+                const result = await codeReader.decodeFromVideoElement('video-preview');
                 if (result) {
                     processCode(result.getText());
                 }
             } catch (error) {
-                // NotFoundException ist normal (wenn kein Code im Bild ist) und wird ignoriert.
+                // NotFoundException ist normal, wenn kein Code im Bild ist, und wird ignoriert.
                 if (error && error.name !== 'NotFoundException') {
                     console.error('ZXing scan error:', error);
                 }
             }
         }
 
+        // 5. Funktion zur Verarbeitung der gescannten Daten
+        function processCode(text) {
+            const parts = text.split('|');
+            if (parts.length < 3) return; // Ungültiges Format
+
+            const currentIndex = parseInt(parts[0], 10);
+            const total = parseInt(parts[1], 10);
+            const data = parts.slice(2).join('|');
+
+            if (!receivedChunks[currentIndex]) {
+                receivedChunks[currentIndex] = data;
+                totalChunks = total;
+
+                const receivedCount = Object.keys(receivedChunks).length;
+                progressEl.textContent = `Empfange Teil ${receivedCount} von ${total}...`;
+
+                if (receivedCount === total) {
+                    reassembleAndDisplay();
+                }
+            }
+        }
+
+        // 6. Funktion zum Zusammensetzen und Anzeigen des Ergebnisses
         function reassembleAndDisplay() {
             let fullText = "";
-            for (let i = 1; i <= totalChunks; i++) { fullText += receivedChunks[i] || ''; }
+            for (let i = 1; i <= totalChunks; i++) {
+                fullText += receivedChunks[i] || '[DATENFEHLER]';
+            }
             resultEl.textContent = fullText;
             progressEl.textContent = "Übertragung abgeschlossen!";
     
-            // Wichtig: Die Scan-Schleife und die Kamera stoppen
+            // Wichtig: Scan-Schleife und Kamera stoppen, um Ressourcen zu schonen
             if (scanInterval) clearInterval(scanInterval);
             scanInterval = null;
-            if (controls) { controls.stop(); controls = null; }
+            if (controls) {
+                controls.stop();
+                controls = null;
+            }
     
             startScanBtn.disabled = false;
-        };
+        }
     </script>
 </body>
 </html>
