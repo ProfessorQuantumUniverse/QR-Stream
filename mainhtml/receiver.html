@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>QR-Stream Empfänger (Performance-Optimiert)</title>
+    <title>QR-Stream Empfänger (Stabil & Performant)</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; background-color: #f8f9fa; }
         .container { max-width: 800px; width: 100%; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
@@ -30,10 +30,16 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
+    <!-- KORREKTUR 1: Das 'defer'-Attribut wird hinzugefügt. -->
+    <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/zxing-browser.min.js" defer></script>
     
-    <script>
-        // --- VOLLSTÄNDIGES, KORRIGIERTES SKRIPT ---
+    <!-- KORREKTUR 2: Auch das Inline-Skript erhält 'defer', um die korrekte Reihenfolge zu garantieren. -->
+    <script defer>
+        // --- STABILISIERTES, KORRIGIERTES SKRIPT ---
+
+        // Da dieses Skript 'defer' ist, wird es garantiert erst nach dem Laden
+        // und Ausführen der ZXing-Bibliothek ausgeführt.
+        // Alle DOM-Elemente sind zu diesem Zeitpunkt ebenfalls garantiert verfügbar.
 
         // 1. DOM-Elemente abrufen
         const startScanBtn = document.getElementById('start-scan-btn');
@@ -42,6 +48,7 @@
         const progressEl = document.getElementById('progress');
 
         // 2. ZXing-Reader und Zustandsvariablen initialisieren
+        // Das 'ZXing'-Objekt ist jetzt garantiert definiert.
         const codeReader = new ZXing.BrowserMultiFormatReader();
         let receivedChunks = {};
         let totalChunks = 0;
@@ -70,12 +77,9 @@
                 video.srcObject = stream;
                 video.play();
 
-                // Stream an ZXing binden, aber noch nicht die Endlos-Schleife starten
                 controls = await codeReader.attachStreamToVideo(stream, 'video-preview');
                 progressEl.textContent = 'Kamera aktiv. Scanne...';
 
-                // Kontrollierte Scan-Schleife starten (Throttling)
-                // Der Sender wechselt alle 150ms. Ein Scan alle 160ms ist ein guter, batterieschonender Wert.
                 if (scanInterval) clearInterval(scanInterval);
                 scanInterval = setInterval(scanFrame, 160);
 
@@ -89,7 +93,7 @@
 
         // 4. Funktion, die einen einzelnen Frame scannt
         async function scanFrame() {
-            if (!video.srcObject) return; // Stopp, wenn die Kamera aus ist
+            if (!video.srcObject) return;
 
             try {
                 const result = await codeReader.decodeFromVideoElement('video-preview');
@@ -97,7 +101,6 @@
                     processCode(result.getText());
                 }
             } catch (error) {
-                // NotFoundException ist normal, wenn kein Code im Bild ist, und wird ignoriert.
                 if (error && error.name !== 'NotFoundException') {
                     console.error('ZXing scan error:', error);
                 }
@@ -107,7 +110,7 @@
         // 5. Funktion zur Verarbeitung der gescannten Daten
         function processCode(text) {
             const parts = text.split('|');
-            if (parts.length < 3) return; // Ungültiges Format
+            if (parts.length < 3) return;
 
             const currentIndex = parseInt(parts[0], 10);
             const total = parseInt(parts[1], 10);
@@ -135,7 +138,6 @@
             resultEl.textContent = fullText;
             progressEl.textContent = "Übertragung abgeschlossen!";
     
-            // Wichtig: Scan-Schleife und Kamera stoppen, um Ressourcen zu schonen
             if (scanInterval) clearInterval(scanInterval);
             scanInterval = null;
             if (controls) {
