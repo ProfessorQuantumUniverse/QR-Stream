@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>QR-Stream Empfänger</title>
+    <title>QR-Stream Empfänger (Multi-Code)</title>
     <style>
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
         #video-container { position: relative; width: 400px; height: 300px; }
@@ -14,7 +14,7 @@
 </head>
 <body>
     <h1>QR-Stream Empfänger</h1>
-    <p>Richten Sie Ihre Kamera auf den QR-Code-Stream.</p>
+    <p>Richten Sie Ihre Kamera auf den Stream. Erkennt QR- und Data-Matrix-Codes.</p>
     <button id="start-scan-btn">Scan starten</button>
     <div id="video-container">
         <video id="video-preview" playsinline></video>
@@ -25,55 +25,47 @@
         <pre id="result-text"></pre>
     </div>
 
-    <!-- Wir binden die QR-Scanner-Bibliothek ein -->
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <!-- NEUE BIBLIOTHEK: zxing-js kann viele Formate lesen -->
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/zxing-library.min.js"></script>
     <script>
         const startScanBtn = document.getElementById('start-scan-btn');
         const video = document.getElementById('video-preview');
         const progressEl = document.getElementById('progress');
         const resultEl = document.getElementById('result-text');
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
 
         let receivedChunks = {};
         let totalChunks = 0;
         let animationFrameId = null;
 
+        // ZXing-Code-Reader initialisieren
+        const codeReader = new ZXing.BrowserMultiFormatReader();
+
         startScanBtn.addEventListener('click', async () => {
+            startScanBtn.style.display = 'none';
+            progressEl.textContent = 'Starte Kamera...';
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                video.srcObject = stream;
-                video.play();
-                startScanBtn.style.display = 'none';
-                animationFrameId = requestAnimationFrame(scan);
+                // Die decodeFromVideoDevice-Methode von ZXing ist sehr praktisch
+                codeReader.decodeFromVideoDevice(undefined, 'video-preview', (result, err) => {
+                    if (result) {
+                        // Ein Code wurde gefunden!
+                        processCode(result.getText());
+                    }
+                    if (err && !(err instanceof ZXing.NotFoundException)) {
+                        console.error("Scan-Fehler:", err);
+                    }
+                });
+                progressEl.textContent = 'Kamera aktiv. Scanne...';
             } catch (err) {
                 alert("Kamerazugriff fehlgeschlagen: " + err);
+                startScanBtn.style.display = 'block';
             }
         });
-
-        function scan() {
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-                
-                const code = jsQR(imageData.data, imageData.width, imageData.height);
-
-                if (code) {
-                    processQrCode(code.data);
-                }
-            }
-            // Scanne weiter, solange wir nicht alle Teile haben
-            if (totalChunks === 0 || Object.keys(receivedChunks).length < totalChunks) {
-                animationFrameId = requestAnimationFrame(scan);
-            }
-        }
-
-        function processQrCode(data) {
+        
+        function processCode(data) {
             try {
+                // Das Protokoll bleibt dasselbe, daher muss hier nichts geändert werden
                 const parts = data.split('|');
-                if (parts.length < 3) return; // Ungültiges Format
+                if (parts.length < 3) return;
 
                 const chunkNum = parseInt(parts[0], 10);
                 const currentTotal = parseInt(parts[1], 10);
@@ -91,7 +83,7 @@
                     }
                 }
             } catch (e) {
-                // Fehler beim Parsen ignorieren, einfach weiterscannen
+                // Fehler ignorieren
             }
         }
 
@@ -103,11 +95,8 @@
             resultEl.textContent = fullText;
             progressEl.textContent = "Übertragung abgeschlossen!";
             
-            // Kamera stoppen
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            if (video.srcObject) {
-                video.srcObject.getTracks().forEach(track => track.stop());
-            }
+            // Stoppt den Scan und gibt die Kamera frei
+            codeReader.reset();
         }
     </script>
 </body>
