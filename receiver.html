@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>QR-Stream Empfänger</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        #video-container { position: relative; width: 400px; height: 300px; }
+        video { width: 100%; height: 100%; }
+        #result-container { width: 80%; margin-top: 20px; }
+        #progress { font-style: italic; color: #555; }
+        pre { white-space: pre-wrap; word-wrap: break-word; background: #f4f4f4; padding: 10px; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1>QR-Stream Empfänger</h1>
+    <p>Richten Sie Ihre Kamera auf den QR-Code-Stream.</p>
+    <button id="start-scan-btn">Scan starten</button>
+    <div id="video-container">
+        <video id="video-preview" playsinline></video>
+    </div>
+    <div id="result-container">
+        <h3>Ergebnis:</h3>
+        <div id="progress">Warte auf Daten...</div>
+        <pre id="result-text"></pre>
+    </div>
+
+    <!-- Wir binden die QR-Scanner-Bibliothek ein -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script>
+        const startScanBtn = document.getElementById('start-scan-btn');
+        const video = document.getElementById('video-preview');
+        const progressEl = document.getElementById('progress');
+        const resultEl = document.getElementById('result-text');
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+
+        let receivedChunks = {};
+        let totalChunks = 0;
+        let animationFrameId = null;
+
+        startScanBtn.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = stream;
+                video.play();
+                startScanBtn.style.display = 'none';
+                animationFrameId = requestAnimationFrame(scan);
+            } catch (err) {
+                alert("Kamerazugriff fehlgeschlagen: " + err);
+            }
+        });
+
+        function scan() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                if (code) {
+                    processQrCode(code.data);
+                }
+            }
+            // Scanne weiter, solange wir nicht alle Teile haben
+            if (totalChunks === 0 || Object.keys(receivedChunks).length < totalChunks) {
+                animationFrameId = requestAnimationFrame(scan);
+            }
+        }
+
+        function processQrCode(data) {
+            try {
+                const parts = data.split('|');
+                if (parts.length < 3) return; // Ungültiges Format
+
+                const chunkNum = parseInt(parts[0], 10);
+                const currentTotal = parseInt(parts[1], 10);
+                const chunkData = parts.slice(2).join('|');
+
+                if (!receivedChunks[chunkNum]) {
+                    totalChunks = currentTotal;
+                    receivedChunks[chunkNum] = chunkData;
+
+                    const receivedCount = Object.keys(receivedChunks).length;
+                    progressEl.textContent = `Pakete empfangen: ${receivedCount} von ${totalChunks}`;
+                    
+                    if (receivedCount === totalChunks) {
+                        reassembleAndDisplay();
+                    }
+                }
+            } catch (e) {
+                // Fehler beim Parsen ignorieren, einfach weiterscannen
+            }
+        }
+
+        function reassembleAndDisplay() {
+            let fullText = "";
+            for (let i = 1; i <= totalChunks; i++) {
+                fullText += receivedChunks[i];
+            }
+            resultEl.textContent = fullText;
+            progressEl.textContent = "Übertragung abgeschlossen!";
+            
+            // Kamera stoppen
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+        }
+    </script>
+</body>
+</html>

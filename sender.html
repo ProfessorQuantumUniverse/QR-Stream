@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>QR-Stream Sender</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        textarea { width: 80%; min-height: 150px; margin-bottom: 20px; }
+        #qr-container { width: 400px; height: 400px; border: 1px solid #ccc; }
+        #qr-image { width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+    <h1>QR-Stream Sender</h1>
+    <p>Geben Sie hier Ihren Text ein. Er wird in eine animierte QR-Code-Sequenz umgewandelt.</p>
+    <textarea id="text-input" placeholder="Langer Text hier..."></textarea>
+    <button id="generate-btn">QR-Stream generieren</button>
+    <div id="qr-container">
+        <img id="qr-image" src="" alt="Hier erscheint der QR-Code-Stream">
+    </div>
+
+    <!-- Wir binden die QR-Code-Bibliothek ein -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <script>
+        const textInput = document.getElementById('text-input');
+        const generateBtn = document.getElementById('generate-btn');
+        const qrImage = document.getElementById('qr-image');
+        
+        let animationInterval = null;
+
+        generateBtn.addEventListener('click', () => {
+            const text = textInput.value;
+            if (!text) {
+                alert("Bitte geben Sie Text ein.");
+                return;
+            }
+
+            // Stoppe eine laufende Animation
+            if (animationInterval) clearInterval(animationInterval);
+
+            const chunkSize = 150; // Zeichen pro QR-Code
+            const chunks = [];
+            for (let i = 0; i < text.length; i += chunkSize) {
+                chunks.push(text.substring(i, i + chunkSize));
+            }
+
+            const totalChunks = chunks.length;
+            const qrDataUrls = chunks.map((chunk, index) => {
+                const packet = `${index + 1}|${totalChunks}|${chunk}`;
+                const qr = qrcode(0, 'M'); // 0 = auto-detect size, M = Medium error correction
+                qr.addData(packet);
+                qr.make();
+                return qr.createDataURL(10); // 10 = pixel size
+            });
+
+            let currentIndex = 0;
+            animationInterval = setInterval(() => {
+                qrImage.src = qrDataUrls[currentIndex];
+                currentIndex = (currentIndex + 1) % qrDataUrls.length;
+            }, 250); // Alle 250ms ein neuer QR-Code
+        });
+    </script>
+</body>
+</html>
