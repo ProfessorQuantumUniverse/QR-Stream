@@ -2,10 +2,10 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>QR-Stream Empfänger (Multi-Code)</title>
+    <title>QR-Stream Empfänger (Multi-Code - Repariert)</title>
     <style>
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        #video-container { position: relative; width: 400px; height: 300px; }
+        #video-container { position: relative; width: 400px; height: 300px; border: 1px solid #ccc; background: #000; }
         video { width: 100%; height: 100%; }
         #result-container { width: 80%; margin-top: 20px; }
         #progress { font-style: italic; color: #555; }
@@ -21,11 +21,11 @@
     </div>
     <div id="result-container">
         <h3>Ergebnis:</h3>
-        <div id="progress">Warte auf Daten...</div>
+        <div id="progress">Warte auf Start...</div>
         <pre id="result-text"></pre>
     </div>
 
-    <!-- NEUE BIBLIOTHEK: zxing-js kann viele Formate lesen -->
+    <!-- Die korrekte und stabile ZXing-Bibliothek -->
     <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/zxing-library.min.js"></script>
     <script>
         const startScanBtn = document.getElementById('start-scan-btn');
@@ -35,35 +35,46 @@
 
         let receivedChunks = {};
         let totalChunks = 0;
-        let animationFrameId = null;
-
+        
         // ZXing-Code-Reader initialisieren
         const codeReader = new ZXing.BrowserMultiFormatReader();
+        let controls = null; // Variable für die Steuerung des Streams
 
-        startScanBtn.addEventListener('click', async () => {
-            startScanBtn.style.display = 'none';
+        // ===================================
+        // === HIER IST DIE EXAKTE KORREKTUR ===
+        // ===================================
+        startScanBtn.addEventListener('click', () => {
+            // Setze den Zustand bei jedem Klick zurück (falls vorher abgebrochen wurde)
+            receivedChunks = {};
+            totalChunks = 0;
+            resultEl.textContent = '';
             progressEl.textContent = 'Starte Kamera...';
-            try {
-                // Die decodeFromVideoDevice-Methode von ZXing ist sehr praktisch
-                codeReader.decodeFromVideoDevice(undefined, 'video-preview', (result, err) => {
-                    if (result) {
-                        // Ein Code wurde gefunden!
-                        processCode(result.getText());
-                    }
-                    if (err && !(err instanceof ZXing.NotFoundException)) {
-                        console.error("Scan-Fehler:", err);
-                    }
-                });
+            startScanBtn.disabled = true; // Button deaktivieren, um Doppelklicks zu verhindern
+
+            // Die decodeFromVideoDevice-Methode startet den Scan.
+            // Sie gibt ein Promise zurück, das ein 'controls' Objekt enthält.
+            codeReader.decodeFromVideoDevice(undefined, 'video-preview', (result, error) => {
+                if (result) {
+                    processCode(result.getText());
+                }
+                // Fehler nur loggen, wenn es keine 'NotFoundException' ist (was normal ist, wenn kein Code im Bild ist)
+                if (error && !(error instanceof ZXing.NotFoundException)) {
+                    console.error('ZXing scan error:', error);
+                }
+            }).then(ctr => {
+                // Dieses 'controls' Objekt ist der Schlüssel! Wir speichern es, um den Stream später zu stoppen.
+                controls = ctr;
                 progressEl.textContent = 'Kamera aktiv. Scanne...';
-            } catch (err) {
-                alert("Kamerazugriff fehlgeschlagen: " + err);
-                startScanBtn.style.display = 'block';
-            }
+            }).catch(err => {
+                console.error('FATAL: Kamerazugriff fehlgeschlagen.', err);
+                alert('Fehler: Konnte nicht auf die Kamera zugreifen. Bitte überprüfen Sie die Berechtigungen.');
+                progressEl.textContent = 'Kamerazugriff fehlgeschlagen.';
+                startScanBtn.disabled = false; // Button wieder aktivieren
+            });
         });
         
         function processCode(data) {
             try {
-                // Das Protokoll bleibt dasselbe, daher muss hier nichts geändert werden
                 const parts = data.split('|');
                 if (parts.length < 3) return;
 
@@ -72,7 +83,9 @@
                 const chunkData = parts.slice(2).join('|');
 
                 if (!receivedChunks[chunkNum]) {
-                    totalChunks = currentTotal;
+                    if (totalChunks === 0) { // Beim ersten gültigen Paket
+                        totalChunks = currentTotal;
+                    }
                     receivedChunks[chunkNum] = chunkData;
 
                     const receivedCount = Object.keys(receivedChunks).length;
@@ -83,20 +96,24 @@
                     }
                 }
             } catch (e) {
-                // Fehler ignorieren
+                // Fehler beim Parsen ignorieren, einfach weiterscannen
             }
         }
 
         function reassembleAndDisplay() {
             let fullText = "";
             for (let i = 1; i <= totalChunks; i++) {
-                fullText += receivedChunks[i];
+                fullText += receivedChunks[i] || ''; // Füge leeren String hinzu, falls ein Paket fehlt
             }
             resultEl.textContent = fullText;
             progressEl.textContent = "Übertragung abgeschlossen!";
             
-            // Stoppt den Scan und gibt die Kamera frei
-            codeReader.reset();
+            // Stoppt den Scan und gibt die Kamera frei, indem das 'controls' Objekt verwendet wird
+            if (controls) {
+                controls.stop();
+                controls = null;
+            }
+            startScanBtn.disabled = false; // Button für den nächsten Durchgang wieder aktivieren
         }
     </script>
 </body>
