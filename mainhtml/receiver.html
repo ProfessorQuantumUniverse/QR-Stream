@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>QR-Stream Empfänger (Final Object Fix)</title>
+    <title>QR-Stream Empfänger (The Final Truth)</title>
     <style>
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
         #video-container { position: relative; width: 400px; height: 300px; border: 1px solid #ccc; background: #000; }
@@ -38,10 +38,7 @@
             let receivedChunks = {};
             let totalChunks = 0;
             
-            // =======================================================
-            // === HIER IST DIE FINALE, ENTSCHEIDENDE KORREKTUR ===
-            // =======================================================
-            // Wir verwenden das korrekte globale Objekt 'ZXingBrowser', das von der neuen Bibliothek bereitgestellt wird.
+            // Wir verwenden das korrekte globale Objekt 'ZXingBrowser' für die Browser-Klasse.
             const codeReader = new ZXingBrowser.BrowserMultiFormatReader();
             let controls = null;
 
@@ -56,8 +53,13 @@
                     if (result) {
                         processCode(result.getText());
                     }
-                    // Die NotFoundException ist eine spezifische Klasse im neuen Objekt.
-                    if (error && !(error instanceof ZXingBrowser.NotFoundException)) {
+                    
+                    // =========================================================================
+                    // === DIE ENDGÜLTIGE, ROBUSTE UND KORREKTE FEHLERBEHANDLUNG ===
+                    // =========================================================================
+                    // Wir prüfen den 'name' des Fehlers als String. Dies ist immun gegen Timing-Probleme.
+                    // 'NotFoundException' ist der erwartete Fehler, wenn kein Code im Bild ist. Wir ignorieren ihn.
+                    if (error && error.name !== 'NotFoundException') {
                         console.error('ZXing scan error:', error);
                     }
                 }).then(ctr => {
@@ -75,41 +77,25 @@
                 try {
                     const parts = data.split('|');
                     if (parts.length < 3) return;
-
                     const chunkNum = parseInt(parts[0], 10);
                     const currentTotal = parseInt(parts[1], 10);
                     const chunkData = parts.slice(2).join('|');
-
                     if (!receivedChunks[chunkNum]) {
-                        if (totalChunks === 0) {
-                            totalChunks = currentTotal;
-                        }
+                        if (totalChunks === 0) { totalChunks = currentTotal; }
                         receivedChunks[chunkNum] = chunkData;
-
                         const receivedCount = Object.keys(receivedChunks).length;
                         progressEl.textContent = `Pakete empfangen: ${receivedCount} von ${totalChunks}`;
-                        
-                        if (receivedCount === totalChunks) {
-                            reassembleAndDisplay();
-                        }
+                        if (receivedCount === totalChunks) { reassembleAndDisplay(); }
                     }
-                } catch (e) {
-                    // Fehler beim Parsen ignorieren
-                }
+                } catch (e) { /* Fehler beim Parsen ignorieren */ }
             }
 
             function reassembleAndDisplay() {
                 let fullText = "";
-                for (let i = 1; i <= totalChunks; i++) {
-                    fullText += receivedChunks[i] || '';
-                }
+                for (let i = 1; i <= totalChunks; i++) { fullText += receivedChunks[i] || ''; }
                 resultEl.textContent = fullText;
                 progressEl.textContent = "Übertragung abgeschlossen!";
-                
-                if (controls) {
-                    controls.stop();
-                    controls = null;
-                }
+                if (controls) { controls.stop(); controls = null; }
                 startScanBtn.disabled = false;
             }
         });
