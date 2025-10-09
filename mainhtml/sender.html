@@ -2,12 +2,12 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>QR-Stream Sender</title>
+    <title>QR-Stream Sender (Optimiert)</title>
     <style>
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
         textarea { width: 80%; min-height: 150px; margin-bottom: 20px; }
         #qr-container { width: 400px; height: 400px; border: 1px solid #ccc; }
-        #qr-image { width: 100%; height: 100%; }
+        #qr-image { width: 100%; height: 100%; image-rendering: pixelated; /* Sorgt für scharfe Kanten */ }
     </style>
 </head>
 <body>
@@ -38,7 +38,13 @@
             // Stoppe eine laufende Animation
             if (animationInterval) clearInterval(animationInterval);
 
-            const chunkSize = 150; // Zeichen pro QR-Code
+            // =======================
+            // === ÄNDERUNG NR. 1 ===
+            // =======================
+            // Wir erhöhen die Datenmenge pro Paket drastisch von 150 auf 400 Zeichen.
+            // Dies erzeugt komplexere QR-Codes mit mehr Informationen.
+            const chunkSize = 400; 
+
             const chunks = [];
             for (let i = 0; i < text.length; i += chunkSize) {
                 chunks.push(text.substring(i, i + chunkSize));
@@ -47,17 +53,25 @@
             const totalChunks = chunks.length;
             const qrDataUrls = chunks.map((chunk, index) => {
                 const packet = `${index + 1}|${totalChunks}|${chunk}`;
-                const qr = qrcode(0, 'M'); // 0 = auto-detect size, M = Medium error correction
+                
+                // Wir verwenden eine niedrige Fehlerkorrektur ('L'), um die maximale Datenkapazität zu nutzen.
+                const qr = qrcode(0, 'L'); // 0 = auto-detect size, L = Low error correction (ca. 7%)
                 qr.addData(packet);
                 qr.make();
-                return qr.createDataURL(10); // 10 = pixel size
+                return qr.createDataURL(8); // Kleinere Pixelgröße für dichtere Codes
             });
 
             let currentIndex = 0;
+
+            // =======================
+            // === ÄNDERUNG NR. 2 ===
+            // =======================
+            // Wir beschleunigen die Animation, indem wir das Intervall von 250ms auf 150ms reduzieren.
+            // Das entspricht ~6.6 Frames pro Sekunde.
             animationInterval = setInterval(() => {
                 qrImage.src = qrDataUrls[currentIndex];
                 currentIndex = (currentIndex + 1) % qrDataUrls.length;
-            }, 250); // Alle 250ms ein neuer QR-Code
+            }, 150); 
         });
     </script>
 </body>
