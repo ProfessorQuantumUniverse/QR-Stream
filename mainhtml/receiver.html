@@ -34,84 +34,79 @@
     <script src="https://unpkg.com/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
     
     <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            const startScanBtn = document.getElementById('start-scan-btn');
-            const video = document.getElementById('video-preview');
-            const progressEl = document.getElementById('progress');
-            const resultEl = document.getElementById('result-text');
+        // Ersetzen Sie den EventListener für 'start-scan-btn' durch diesen Code:
 
-            let receivedChunks = {};
-            let totalChunks = 0;
-            
-            const codeReader = new ZXingBrowser.BrowserMultiFormatReader();
-            let controls = null;
+        let scanInterval = null;
 
-            startScanBtn.addEventListener('click', () => {
-                receivedChunks = {};
-                totalChunks = 0;
-                resultEl.textContent = '';
-                progressEl.textContent = 'Starte Kamera...';
-                startScanBtn.disabled = true;
+        startScanBtn.addEventListener('click', async () => {
+            receivedChunks = {};
+            totalChunks = 0;
+            resultEl.textContent = '';
+            progressEl.textContent = 'Starte Kamera...';
+            startScanBtn.disabled = true;
 
-                // ========================================================
-                // === HIER IST DER CHIRURGISCHE EINGRIFF FÜR DIE PERFORMANCE ===
-                // ========================================================
-                // Wir definieren exakte Anforderungen (Constraints) für den Videostream.
-                // Wir erzwingen eine niedrige Auflösung (640x480), um die CPU-Last drastisch zu senken.
-                const constraints = {
-                    video: {
-                        width: { ideal: 640 },
-                        height: { ideal: 480 },
-                        facingMode: 'environment' // Bevorzuge die Rückkamera auf Mobilgeräten
-                    }
-                };
+    // 1. Kamera-Stream anfordern (wie bisher)
+            const constraints = {
+                video: {
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    facingMode: 'environment'
+                }
+            };
 
-                // Wir übergeben die Constraints an eine spezifischere Methode, um volle Kontrolle zu haben.
-                codeReader.decodeFromConstraints(constraints, 'video-preview', (result, error) => {
-                    if (result) {
-                        processCode(result.getText());
-                    }
-                    if (error && error.name !== 'NotFoundException') {
-                        console.error('ZXing scan error:', error);
-                    }
-                }).then(ctr => {
-                    controls = ctr;
-                    progressEl.textContent = 'Kamera aktiv. Scanne...';
-                }).catch(err => {
-                    console.error('FATAL: Kamerazugriff fehlgeschlagen.', err);
-                    alert('Fehler: Konnte nicht auf die Kamera zugreifen. Bitte überprüfen Sie die Berechtigungen und ob die Auflösung unterstützt wird.');
-                    progressEl.textContent = 'Kamerazugriff fehlgeschlagen.';
-                    startScanBtn.disabled = false;
-                });
-            });
-            
-            function processCode(data) {
-                // Diese Logik ist bereits schnell und bleibt unverändert.
-                try {
-                    const parts = data.split('|');
-                    if (parts.length < 3) return;
-                    const chunkNum = parseInt(parts[0], 10);
-                    const currentTotal = parseInt(parts[1], 10);
-                    const chunkData = parts.slice(2).join('|');
-                    if (!receivedChunks[chunkNum]) {
-                        if (totalChunks === 0) { totalChunks = currentTotal; }
-                        receivedChunks[chunkNum] = chunkData;
-                        const receivedCount = Object.keys(receivedChunks).length;
-                        progressEl.textContent = `Pakete empfangen: ${receivedCount} von ${totalChunks}`;
-                        if (receivedCount === totalChunks) { reassembleAndDisplay(); }
-                    }
-                } catch (e) { /* Fehler beim Parsen ignorieren */ }
-            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                video.play(); // Video-Vorschau starten
 
-            function reassembleAndDisplay() {
-                let fullText = "";
-                for (let i = 1; i <= totalChunks; i++) { fullText += receivedChunks[i] || ''; }
-                resultEl.textContent = fullText;
-                progressEl.textContent = "Übertragung abgeschlossen!";
-                if (controls) { controls.stop(); controls = null; }
+                // Zuweisen des Streams an den CodeReader, aber noch nicht scannen!
+                controls = await codeReader.attachStreamToVideo(stream, 'video-preview');
+                progressEl.textContent = 'Kamera aktiv. Scanne...';
+
+                // 2. Kontrollierte Scan-Schleife starten
+                // Der Sender wechselt alle 150ms. Ein Scan alle 160ms ist ein guter Startwert.
+                if (scanInterval) clearInterval(scanInterval);
+                scanInterval = setInterval(scanFrame, 160);
+
+            } catch (err) {
+                console.error('FATAL: Kamerazugriff fehlgeschlagen.', err);
+                alert('Fehler: Konnte nicht auf die Kamera zugreifen.');
+                progressEl.textContent = 'Kamerazugriff fehlgeschlagen.';
                 startScanBtn.disabled = false;
             }
         });
+
+        // 3. Eine separate Funktion zum Scannen eines einzelnen Frames
+        async function scanFrame() {
+            if (!video.srcObject) return; // Stopp, wenn die Kamera aus ist
+
+            try {
+                // Scanne genau EINEN Frame vom laufenden Video
+                const result = await codeReader.decodeFromVideo('video-preview');
+                if (result) {
+                    processCode(result.getText());
+                }
+            } catch (error) {
+                // NotFoundException ist normal (wenn kein Code im Bild ist) und wird ignoriert.
+                if (error && error.name !== 'NotFoundException') {
+                    console.error('ZXing scan error:', error);
+                }
+            }
+        }
+
+        function reassembleAndDisplay() {
+            let fullText = "";
+            for (let i = 1; i <= totalChunks; i++) { fullText += receivedChunks[i] || ''; }
+            resultEl.textContent = fullText;
+            progressEl.textContent = "Übertragung abgeschlossen!";
+    
+            // Wichtig: Die Scan-Schleife und die Kamera stoppen
+            if (scanInterval) clearInterval(scanInterval);
+            scanInterval = null;
+            if (controls) { controls.stop(); controls = null; }
+    
+            startScanBtn.disabled = false;
+        };
     </script>
 </body>
 </html>
