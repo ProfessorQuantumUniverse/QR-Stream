@@ -20,9 +20,12 @@ base_diameter = 210;          // Durchmesser der Basis (größer für Stabilitä
 base_thickness = 3;           // Dicke der Basis
 
 // Konkave Kurve - Annahme: leicht sphärische Konkavität
-// Wenn der Rand 15mm höher ist als die Mitte, berechnen wir einen Radius
-// Für eine flache Konkavität nehmen wir einen großen Radius
-concave_radius = 3000;        // Großer Radius für sanfte Kurve
+// Berechnung: Für eine sphärische Oberfläche mit Radius R, Durchmesser d=200mm, Höhe h=15mm
+// Näherung für flache Kurven: R ≈ (d²)/(8h) + h/2 = (200²)/(8*15) + 15/2 ≈ 341mm
+// Da die genaue Krümmung unbekannt ist, verwenden wir einen größeren Radius für
+// eine konservative (flachere) Kurve, die an verschiedene Spiegelformen anpassbar ist
+concave_radius = 3000;        // Großer Radius für sanfte, anpassbare Kurve
+                               // Reduzieren für stärkere Krümmung, erhöhen für flachere
 
 // Qualitätseinstellungen
 $fn = 100;                    // Anzahl der Fragmente für glatte Kurven
