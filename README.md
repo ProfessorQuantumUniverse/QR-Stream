@@ -32,7 +32,7 @@
   <!-- LIVE DEMO BUTTONS -->
   <h3>🚀 Try it now</h3>
   <a href="https://professorquantumuniverse.github.io/QR-Stream/">
-    <img src="https://img.shields.io/badge/Launch-SENDER-007BFF?style=flat&logo=telegram&logoColor=white&labelColor=0056b3" height="35" alt="Try Now!">
+    <img src="https://img.shields.io/badge/LAUNCH-007BFF?style=flat&logo=telegram&logoColor=white&labelColor=0056b3" height="35" alt="Try Now!">
   </a>
 
 </div>
