@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Receive · QR-Stream</title>
+<meta name="description" content="Rebuild files from a QR-Stream broadcast using your camera.">
+<link rel="icon" href="../assets/favicon.svg">
+<link rel="stylesheet" href="../assets/app.css">
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <a class="brand" href="../index.html"><span class="mark">QS</span> QR-Stream</a>
+    <nav>
+      <a href="../index.html">Overview</a>
+      <a href="send.html">Send</a>
+      <a href="receive.html">Receive</a>
+      <a href="lab.html">Lab</a>
+      <button class="ghost small" data-theme-toggle title="Switch theme">◐</button>
+    </nav>
+  </header>
+
+  <div class="grid-2">
+    <!-- ---------------- camera ---------------- -->
+    <div>
+      <section class="card">
+        <div class="hstack" style="margin-bottom:16px">
+          <h2 style="margin:0">Camera</h2>
+          <span class="spacer"></span>
+          <span class="badge" id="status"><span class="dot"></span> Stopped</span>
+        </div>
+
+        <div class="viewport" id="viewport">
+          <video id="video" playsinline muted autoplay></video>
+          <canvas class="overlay" id="overlay"></canvas>
+          <div class="placeholder" id="placeholder">
+            Point this device at a screen running a QR-Stream broadcast.<br>
+            Camera access requires HTTPS or localhost.
+          </div>
+        </div>
+
+        <div class="button-row" style="margin-top:16px">
+          <button class="primary" id="start">Start camera</button>
+          <button id="stop" disabled>Stop</button>
+          <button id="torch" hidden title="Toggle the camera light">🔦 Torch</button>
+          <span class="spacer"></span>
+          <button id="reset" disabled title="Discard what has been received so far">Reset</button>
+        </div>
+
+        <div class="field-row" style="margin-top:16px">
+          <div class="field">
+            <label for="camera">Camera</label>
+            <select id="camera"><option value="">Default (rear)</option></select>
+          </div>
+          <div class="field">
+            <label for="detail">Scan detail</label>
+            <select id="detail">
+              <option value="640">Fast — 640px</option>
+              <option value="960" selected>Balanced — 960px</option>
+              <option value="1440">High — 1440px, dense codes</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field" id="zoom-field" hidden>
+          <div class="field-head">
+            <label for="zoom">Zoom</label>
+            <span class="value" id="zoom-value">1.0×</span>
+          </div>
+          <input type="range" id="zoom" min="1" max="4" step="0.1" value="1">
+        </div>
+
+        <div class="message" id="message" hidden></div>
+      </section>
+
+      <section class="card">
+        <p class="section-label">Scanner</p>
+        <dl class="stats">
+          <div class="stat"><dt>Scans/s</dt><dd id="stat-scanrate">0.0</dd></div>
+          <div class="stat"><dt>Decode</dt><dd id="stat-decode">— <small>ms</small></dd></div>
+          <div class="stat"><dt>Frames read</dt><dd id="stat-seen">0</dd></div>
+          <div class="stat"><dt>Repeats</dt><dd id="stat-dupes">0</dd></div>
+        </dl>
+      </section>
+    </div>
+
+    <!-- ---------------- reception ---------------- -->
+    <div>
+      <section class="card">
+        <div class="hstack" style="margin-bottom:8px">
+          <h2 style="margin:0">Reception</h2>
+          <span class="spacer"></span>
+          <span class="badge" id="verify-badge" hidden><span class="dot"></span> CRC verified</span>
+        </div>
+
+        <div class="hstack" style="gap:22px; align-items:center; margin:14px 0 18px">
+          <div class="progress-ring" id="ring"></div>
+          <div style="flex:1; min-width:0">
+            <div class="stat" style="padding:0; background:none">
+              <dt style="font-size:10.5px">Incoming</dt>
+              <dd id="incoming-name" style="font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">Waiting for a stream…</dd>
+            </div>
+            <dl class="stats cols-2" style="margin-top:12px">
+              <div class="stat"><dt>Blocks</dt><dd id="stat-blocks">0 / 0</dd></div>
+              <div class="stat"><dt>Rate</dt><dd id="stat-throughput">—</dd></div>
+              <div class="stat"><dt>Remaining</dt><dd id="stat-eta">—</dd></div>
+              <div class="stat"><dt>Overhead</dt><dd id="stat-overhead">—</dd></div>
+            </dl>
+          </div>
+        </div>
+
+        <p class="section-label">Block recovery map</p>
+        <div class="block-map" id="block-map"></div>
+        <p class="hint" style="margin-top:10px">
+          Each square is one block of the payload. They fill in out of order, and sometimes
+          several at once as the decoder resolves a chain — that is the fountain code working.
+        </p>
+      </section>
+
+      <section class="card" id="result-card" hidden>
+        <div class="hstack" style="margin-bottom:12px">
+          <h2 style="margin:0">Received</h2>
+          <span class="spacer"></span>
+          <span class="badge good"><span class="dot"></span> <span id="result-time">complete</span></span>
+        </div>
+        <div class="file-chip" id="result-chip" style="margin-bottom:14px">
+          <span class="icon" id="result-icon">📄</span>
+          <span class="meta">
+            <span class="name" id="result-name"></span>
+            <span class="size" id="result-size"></span>
+          </span>
+        </div>
+        <pre class="result-text" id="result-text" hidden></pre>
+        <div class="button-row" style="margin-top:14px">
+          <button class="primary" id="download">Download</button>
+          <button id="copy" hidden>Copy text</button>
+          <button id="again">Receive another</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <footer class="site">
+    <p>Video never leaves this device — frames are decoded in the page and discarded.</p>
+  </footer>
+</div>
+
+<script src="../src/vendor/jsqr.js"></script>
+<script type="module" src="../src/ui/receiver.js"></script>
+</body>
+</html>

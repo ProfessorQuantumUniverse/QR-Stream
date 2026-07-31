@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Send · QR-Stream</title>
+<meta name="description" content="Broadcast files or text as a stream of QR codes.">
+<link rel="icon" href="../assets/favicon.svg">
+<link rel="stylesheet" href="../assets/app.css">
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <a class="brand" href="../index.html"><span class="mark">QS</span> QR-Stream</a>
+    <nav>
+      <a href="../index.html">Overview</a>
+      <a href="send.html">Send</a>
+      <a href="receive.html">Receive</a>
+      <a href="lab.html">Lab</a>
+      <button class="ghost small" data-theme-toggle title="Switch theme">◐</button>
+    </nav>
+  </header>
+
+  <div class="grid-2">
+    <!-- ---------------- controls ---------------- -->
+    <div>
+      <section class="card">
+        <h2>Payload</h2>
+        <p class="hint">Anything you send stays on this device until a camera reads it off the screen.</p>
+
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tab-text" aria-selected="true" aria-controls="panel-text">Text</button>
+          <button role="tab" id="tab-file" aria-selected="false" aria-controls="panel-file">File</button>
+        </div>
+
+        <div id="panel-text" role="tabpanel" aria-labelledby="tab-text">
+          <textarea id="text-input" placeholder="Paste a key, a config file, a recovery phrase…"
+                    spellcheck="false"></textarea>
+        </div>
+
+        <div id="panel-file" role="tabpanel" aria-labelledby="tab-file" hidden>
+          <div class="dropzone" id="dropzone" tabindex="0" role="button">
+            <strong>Drop a file here</strong>
+            <span class="sub">or click to choose · everything is processed locally</span>
+          </div>
+          <input type="file" id="file-input" hidden>
+          <div id="file-chip" class="file-chip" hidden style="margin-top:12px">
+            <span class="icon">📄</span>
+            <span class="meta">
+              <span class="name" id="file-name"></span>
+              <span class="size" id="file-size"></span>
+            </span>
+            <button class="small ghost" id="file-clear" title="Remove">✕</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Stream settings</h2>
+        <p class="hint">Denser symbols move more data per frame but need a steadier camera and a closer hold.</p>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="version">Symbol density</label>
+            <span class="value" id="version-value">—</span>
+          </div>
+          <input type="range" id="version" min="6" max="30" step="1" value="16">
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="fps">Frame rate</label>
+            <span class="value" id="fps-value">10 fps</span>
+          </div>
+          <input type="range" id="fps" min="1" max="30" step="1" value="10">
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="ecc">Error correction</label>
+            <select id="ecc">
+              <option value="L">L — 7%, most data</option>
+              <option value="M" selected>M — 15%, balanced</option>
+              <option value="Q">Q — 25%, resilient</option>
+              <option value="H">H — 30%, toughest</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="compress-wrap">Compression</label>
+            <label class="switch" id="compress-wrap">
+              <input type="checkbox" id="compress" checked>
+              <span>Deflate when it helps</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="button-row" style="margin-top:18px">
+          <button class="primary" id="start">Start stream</button>
+          <button id="pause" disabled>Pause</button>
+          <button id="stop" disabled>Stop</button>
+          <span class="spacer"></span>
+          <button id="fullscreen" disabled title="Present fullscreen (F)">⛶ Present</button>
+        </div>
+
+        <div class="message" id="message" hidden></div>
+      </section>
+
+      <section class="card">
+        <h2>Transmission plan</h2>
+        <p class="hint">Computed before the first frame goes out, from the settings above.</p>
+        <dl class="stats cols-3">
+          <div class="stat"><dt>Payload</dt><dd id="stat-payload">—</dd></div>
+          <div class="stat"><dt>On the wire</dt><dd id="stat-wire">—</dd></div>
+          <div class="stat accent"><dt>Blocks</dt><dd id="stat-blocks">—</dd></div>
+          <div class="stat"><dt>Per frame</dt><dd id="stat-perframe">—</dd></div>
+          <div class="stat"><dt>Best case</dt><dd id="stat-besttime">—</dd></div>
+          <div class="stat"><dt>Throughput</dt><dd id="stat-rate">—</dd></div>
+        </dl>
+      </section>
+    </div>
+
+    <!-- ---------------- stage ---------------- -->
+    <div>
+      <section class="card">
+        <div class="hstack" style="margin-bottom:16px">
+          <h2 style="margin:0">Broadcast</h2>
+          <span class="spacer"></span>
+          <span class="badge" id="phase"><span class="dot"></span> Idle</span>
+        </div>
+
+        <div class="stage">
+          <div class="qr-frame idle" id="qr-frame">
+            <canvas id="qr-canvas" width="512" height="512"></canvas>
+          </div>
+          <div class="stage-caption" id="caption">Configure a payload, then start the stream.</div>
+        </div>
+
+        <dl class="stats" style="margin-top:18px">
+          <div class="stat"><dt>Frames sent</dt><dd id="stat-frames">0</dd></div>
+          <div class="stat"><dt>Actual fps</dt><dd id="stat-fps">0.0</dd></div>
+          <div class="stat"><dt>Elapsed</dt><dd id="stat-elapsed">0s</dd></div>
+          <div class="stat"><dt>Passes</dt><dd id="stat-passes">0</dd></div>
+        </dl>
+
+        <p class="hint" style="margin:16px 0 0">
+          The first pass sends each block once, uncoded. After that the sender keeps going
+          forever, emitting fresh coded combinations — so a receiver can start late, or lose
+          frames, and still finish without anyone restarting anything.
+        </p>
+      </section>
+
+      <section class="card">
+        <p class="section-label">Shortcuts</p>
+        <p class="hint" style="margin:0">
+          <span class="mono">Space</span> pause or resume ·
+          <span class="mono">F</span> fullscreen ·
+          <span class="mono">↑ ↓</span> frame rate ·
+          <span class="mono">Esc</span> leave fullscreen
+        </p>
+      </section>
+    </div>
+  </div>
+
+  <footer class="site">
+    <p>Runs entirely in your browser. No network requests once the page is loaded.</p>
+  </footer>
+</div>
+
+<script type="module" src="../src/ui/sender.js"></script>
+</body>
+</html>
