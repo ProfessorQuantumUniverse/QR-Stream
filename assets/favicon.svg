@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="#0a0c10"/>
+  <g fill="url(#g)">
+    <!-- finder pattern, top left -->
+    <path d="M5 5h9v9H5zm2 2v5h5V7z"/>
+    <rect x="8" y="8" width="3" height="3"/>
+    <!-- finder pattern, top right -->
+    <path d="M18 5h9v9h-9zm2 2v5h5V7z"/>
+    <rect x="21" y="8" width="3" height="3"/>
+    <!-- finder pattern, bottom left -->
+    <path d="M5 18h9v9H5zm2 2v5h5v-5z"/>
+    <rect x="8" y="21" width="3" height="3"/>
+    <!-- data modules, suggesting a stream -->
+    <rect x="18" y="18" width="3" height="3"/>
+    <rect x="24" y="18" width="3" height="3"/>
+    <rect x="21" y="21" width="3" height="3"/>
+    <rect x="18" y="24" width="3" height="3"/>
+    <rect x="24" y="24" width="3" height="3"/>
+    <rect x="15" y="15" width="2" height="2"/>
+  </g>
+</svg>

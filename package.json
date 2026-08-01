@@ -1,0 +1,26 @@
+{
+  "name": "qr-stream",
+  "version": "2.0.0",
+  "description": "High-speed optical data transfer over animated QR codes, using rateless fountain codes.",
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ProfessorQuantumUniverse/QR-Stream.git"
+  },
+  "scripts": {
+    "test": "node --test tests/unit/*.test.mjs",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "test:camera": "node tests/e2e/camera.mjs",
+    "test:dist": "node tools/build.js && node tests/e2e/dist.mjs",
+    "build": "node tools/build.js",
+    "serve": "node tools/serve.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "private": true
+}

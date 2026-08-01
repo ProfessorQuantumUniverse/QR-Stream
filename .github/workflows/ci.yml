@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # No install step: the unit suite deliberately has no dependencies, so it
+      # also proves the project runs with an empty node_modules.
+      - run: npm test
+
+  browser:
+    name: Browser and build tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      # Drives the real getUserMedia path against a rendered QR-Stream broadcast
+      # supplied as a fake capture device.
+      - run: npm run test:camera
+      - run: npm run build
+      - run: node tests/e2e/dist.mjs
+      - name: Upload the single-file build
+        uses: actions/upload-artifact@v4
+        with:
+          name: qr-stream-offline
+          path: dist/
+          retention-days: 30

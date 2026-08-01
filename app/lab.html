@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Loopback Lab · QR-Stream</title>
+<meta name="description" content="Run a complete QR-Stream transfer against a simulated camera, with adjustable frame loss.">
+<link rel="icon" href="../assets/favicon.svg">
+<link rel="stylesheet" href="../assets/app.css">
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <a class="brand" href="../index.html"><span class="mark">QS</span> QR-Stream</a>
+    <nav>
+      <a href="../index.html">Overview</a>
+      <a href="send.html">Send</a>
+      <a href="receive.html">Receive</a>
+      <a href="lab.html">Lab</a>
+      <button class="ghost small" data-theme-toggle title="Switch theme">◐</button>
+    </nav>
+  </header>
+
+  <section class="card" style="margin-bottom:18px">
+    <h2>Loopback Lab</h2>
+    <p class="hint" style="margin:0">
+      A complete transfer with no camera involved: every frame is really encoded to a QR symbol,
+      really rasterised to pixels, and really decoded again by the same scanner the receiver page
+      uses. The only thing simulated is the channel — turn the loss slider up and watch the
+      transfer finish anyway.
+    </p>
+  </section>
+
+  <div class="grid-2">
+    <div>
+      <section class="card">
+        <h2>Experiment</h2>
+        <p class="hint">Pick a payload and degrade the channel until something interesting happens.</p>
+
+        <div class="field">
+          <label for="payload">Payload</label>
+          <select id="payload">
+            <option value="text-small">Text — 2 kB of prose</option>
+            <option value="text-large" selected>Text — 40 kB of prose</option>
+            <option value="random-8">Random bytes — 8 kB (incompressible)</option>
+            <option value="random-64">Random bytes — 64 kB (incompressible)</option>
+            <option value="file">Choose a file…</option>
+          </select>
+          <input type="file" id="file-input" hidden>
+          <div class="file-chip" id="file-chip" hidden style="margin-top:10px">
+            <span class="icon">📄</span>
+            <span class="meta">
+              <span class="name" id="file-name"></span>
+              <span class="size" id="file-size"></span>
+            </span>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="loss">Frame loss</label>
+            <span class="value" id="loss-value">30%</span>
+          </div>
+          <input type="range" id="loss" min="0" max="95" step="5" value="30">
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="version">Symbol density</label>
+            <span class="value" id="version-value">v16</span>
+          </div>
+          <input type="range" id="version" min="6" max="30" step="1" value="16">
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="ecc">Error correction</label>
+            <select id="ecc">
+              <option value="L">L — 7%</option>
+              <option value="M" selected>M — 15%</option>
+              <option value="Q">Q — 25%</option>
+              <option value="H">H — 30%</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="speed">Speed</label>
+            <select id="speed">
+              <option value="10">10 fps — realistic</option>
+              <option value="30">30 fps — fast phone</option>
+              <option value="0" selected>Unthrottled — as fast as it goes</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="switch">
+            <input type="checkbox" id="blur">
+            <span>Soften the image, as a real lens would</span>
+          </label>
+        </div>
+
+        <div class="button-row" style="margin-top:16px">
+          <button class="primary" id="run">Run transfer</button>
+          <button id="cancel" disabled>Stop</button>
+        </div>
+
+        <div class="message" id="message" hidden></div>
+      </section>
+
+      <section class="card">
+        <p class="section-label">Channel</p>
+        <dl class="stats">
+          <div class="stat"><dt>Frames sent</dt><dd id="stat-sent">0</dd></div>
+          <div class="stat"><dt>Dropped</dt><dd id="stat-dropped">0</dd></div>
+          <div class="stat"><dt>Decoded</dt><dd id="stat-decoded">0</dd></div>
+          <div class="stat"><dt>Unreadable</dt><dd id="stat-unreadable">0</dd></div>
+        </dl>
+      </section>
+    </div>
+
+    <div>
+      <section class="card">
+        <div class="hstack" style="margin-bottom:14px">
+          <h2 style="margin:0">Live loop</h2>
+          <span class="spacer"></span>
+          <span class="badge" id="phase"><span class="dot"></span> Idle</span>
+        </div>
+
+        <div class="hstack" style="gap:20px; align-items:flex-start">
+          <div class="qr-frame idle" id="qr-frame" style="width:190px; flex:none; padding:8px">
+            <canvas id="qr-canvas" width="256" height="256"></canvas>
+          </div>
+          <div class="progress-ring" id="ring"></div>
+        </div>
+
+        <dl class="stats" style="margin-top:18px">
+          <div class="stat accent"><dt>Blocks</dt><dd id="stat-blocks">0 / 0</dd></div>
+          <div class="stat"><dt>Overhead</dt><dd id="stat-overhead">—</dd></div>
+          <div class="stat"><dt>Goodput</dt><dd id="stat-goodput">—</dd></div>
+          <div class="stat"><dt>Elapsed</dt><dd id="stat-elapsed">0s</dd></div>
+        </dl>
+
+        <p class="section-label" style="margin-top:18px">Block recovery map</p>
+        <div class="block-map" id="block-map"></div>
+
+        <div class="message ok" id="verdict" hidden></div>
+      </section>
+    </div>
+  </div>
+
+  <footer class="site">
+    <p>Everything here runs on the main thread of this page. Nothing is sent anywhere.</p>
+  </footer>
+</div>
+
+<script src="../src/vendor/jsqr.js"></script>
+<script type="module" src="../src/ui/lab.js"></script>
+</body>
+</html>

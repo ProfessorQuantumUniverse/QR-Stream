@@ -1,90 +1,144 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR-Stream: Visuelle Datenübertragung</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f0f2f5;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            text-align: center;
-        }
-
-        .container {
-            max-width: 600px;
-            padding: 50px;
-            background: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            transform: translateY(-20px);
-            transition: all 0.3s ease;
-        }
-
-        h1 {
-            font-size: 2.5em;
-            color: #1a1a1a;
-            margin-bottom: 15px;
-        }
-
-        .subtitle {
-            font-size: 1.1em;
-            color: #666;
-            margin-bottom: 40px;
-        }
-
-        .navigation {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-        }
-
-        .nav-button {
-            display: block;
-            padding: 15px 30px;
-            font-size: 1.2em;
-            font-weight: bold;
-            text-decoration: none;
-            color: #fff;
-            border-radius: 8px;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .nav-button.sender {
-            background: linear-gradient(45deg, #007BFF, #0056b3);
-        }
-
-        .nav-button.receiver {
-            background: linear-gradient(45deg, #28a745, #1e7e34);
-        }
-
-        .nav-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-        }
-
-        .nav-button:active {
-            transform: translateY(0);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>QR-Stream — optical data transfer across an air gap</title>
+<meta name="description" content="Move files between machines that share no network, using nothing but a screen and a camera.">
+<link rel="icon" href="assets/favicon.svg">
+<link rel="stylesheet" href="assets/app.css">
 </head>
 <body>
-    <div class="container">
-        <h1>QR-Stream</h1>
-        <p class="subtitle">Ein experimentelles Projekt zur "air-gapped" Datenübertragung via animierter QR-Codes.</p>
-        <nav class="navigation">
-            <!-- KORREKTUR HIER: Der Pfad zum Unterordner wurde hinzugefügt -->
-            <a href="mainhtml/sender.html" class="nav-button sender">Daten Senden</a>
-            <a href="mainhtml/receiver.html" class="nav-button receiver">Daten Empfangen</a>
-        </nav>
+<div class="shell">
+  <header class="topbar">
+    <a class="brand" href="index.html"><span class="mark">QS</span> QR-Stream</a>
+    <nav>
+      <a href="index.html">Overview</a>
+      <a href="app/send.html">Send</a>
+      <a href="app/receive.html">Receive</a>
+      <a href="app/lab.html">Lab</a>
+      <button class="ghost small" data-theme-toggle title="Switch theme">◐</button>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1>Data that travels<br>as light</h1>
+    <p class="lead">
+      Move a file from a machine with no network onto a phone, using nothing but a screen
+      and a camera. No radio, no cable, no cloud — just a stream of QR codes and something
+      pointed at it.
+    </p>
+    <div class="actions">
+      <a class="btn primary" href="app/send.html">Send something</a>
+      <a class="btn" href="app/receive.html">Receive</a>
+      <a class="btn ghost" href="app/lab.html">Watch it work →</a>
     </div>
+  </section>
+
+  <div class="feature-grid">
+    <article class="card feature">
+      <span class="glyph">🌊</span>
+      <h3>Rateless by design</h3>
+      <p>
+        The sender never repeats itself. It emits an endless fountain of coded frames, and any
+        sufficiently large handful of them rebuilds the file. Miss a frame, look away, walk in
+        halfway through — none of it matters.
+      </p>
+    </article>
+    <article class="card feature">
+      <span class="glyph">📦</span>
+      <h3>Files, not just text</h3>
+      <p>
+        Arbitrary binary, with the filename and media type carried along. Payloads are compressed
+        when compression actually helps, and every transfer ends with a CRC-32 check against what
+        the sender said it was sending.
+      </p>
+    </article>
+    <article class="card feature">
+      <span class="glyph">🔌</span>
+      <h3>No dependencies at runtime</h3>
+      <p>
+        The QR encoder is written from scratch here; the decoder is vendored, unminified, and
+        auditable. Once the page has loaded it makes no network requests at all — which is the
+        only way an air-gap tool makes sense.
+      </p>
+    </article>
+    <article class="card feature">
+      <span class="glyph">🔬</span>
+      <h3>Provable, not just plausible</h3>
+      <p>
+        Every QR version and error correction level is round-tripped against an independent
+        decoder in CI, and full transfers are tested through real pixels at up to 50% frame loss.
+      </p>
+    </article>
+  </div>
+
+  <section class="card" style="margin-top:36px">
+    <h2>How it works</h2>
+    <p class="hint">Three ideas, and the third is the one that matters.</p>
+
+    <div class="feature-grid" style="margin-top:20px">
+      <div>
+        <p class="section-label">1 · Split</p>
+        <p class="dim" style="font-size:13.5px; margin:0">
+          The payload is compressed, then cut into <em>k</em> equal blocks sized to fill one QR
+          symbol exactly. A manifest frame describes the whole transfer — length, checksum, name,
+          block geometry — and is re-sent every twelfth frame so a late arrival can catch up.
+        </p>
+      </div>
+      <div>
+        <p class="section-label">2 · Combine</p>
+        <p class="dim" style="font-size:13.5px; margin:0">
+          Each outgoing frame carries the XOR of a pseudo-randomly chosen set of blocks, labelled
+          only with the 32-bit seed that chose them. The first <em>k</em> frames are a plain
+          uncoded pass, so a clean run costs nothing extra.
+        </p>
+      </div>
+      <div>
+        <p class="section-label">3 · Peel</p>
+        <p class="dim" style="font-size:13.5px; margin:0">
+          The receiver collects whatever it sees. Any frame combining exactly one unknown block
+          reveals it, which may in turn reduce other frames to one unknown, cascading until the
+          payload falls out. Typically about 1.1× <em>k</em> frames is enough.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout">
+      The version of this project from a year ago looped over chunks <span class="mono">1..N</span>
+      forever. That works, but it makes the receiver responsible for catching one
+      <em>specific</em> frame — and a camera that periodically drops frames can miss the same chunk
+      on every pass and never finish. Rateless coding removes the problem rather than mitigating it.
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What it is good for</h2>
+    <p class="hint">And, just as importantly, what it is not.</p>
+    <p class="dim" style="font-size:13.5px">
+      Getting a key, a config file, a seed phrase or a signed transaction off a machine that is
+      deliberately not on any network. Optical transfer is slow — expect a few kilobytes per
+      second — so this is for the small, valuable things.
+    </p>
+    <p class="dim" style="font-size:13.5px; margin-bottom:0">
+      QR-Stream provides no confidentiality of its own. Anything on the screen is readable by
+      anything that can see the screen, including a camera you did not notice. Encrypt sensitive
+      payloads before sending them, and think about who else is in the room.
+    </p>
+  </section>
+
+  <footer class="site">
+    <p>
+      Free software under the GNU GPL v3 ·
+      <a href="https://github.com/ProfessorQuantumUniverse/QR-Stream">Source on GitHub</a>
+    </p>
+  </footer>
+</div>
+
+<script type="module">
+  import { initTheme, markCurrentPage } from './src/ui/common.js';
+  initTheme();
+  markCurrentPage();
+</script>
 </body>
 </html>
