@@ -9,6 +9,12 @@ Move a file between two machines that share no network, using nothing but a scre
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat)](LICENSE)
 ![Runtime dependencies: none](https://img.shields.io/badge/runtime%20deps-none-success?style=flat)
 
+<!-- INSTALL BUTTONS START -->
+<p align="center">
+  <a href="https://professorquantumuniverse.github.io/QR-Stream/"><img src="https://img.shields.io/badge/Launch-Web%20App-7C3AED?style=for-the-badge&logo=pwa&logoColor=white" alt="Launch the web app" height="40"></a>
+</p>
+<!-- INSTALL BUTTONS END -->
+
 [**Launch →**](https://professorquantumuniverse.github.io/QR-Stream/) &nbsp;·&nbsp;
 [Send](https://professorquantumuniverse.github.io/QR-Stream/app/send.html) &nbsp;·&nbsp;
 [Receive](https://professorquantumuniverse.github.io/QR-Stream/app/receive.html) &nbsp;·&nbsp;
